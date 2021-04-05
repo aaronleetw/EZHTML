@@ -1,20 +1,16 @@
 version: 2.1
-
 jobs:
-  build:
+  build_gcc_latest:
     docker:
-      - image: "debian:stretch"
+      - image: gcc:latest
     steps:
       - checkout
-      - run:
-          name: Installing SUDO
-          command: 'apt-get update && apt-get install -y sudo && rm -rf /var/lib/apt/lists/*'
-      - run:
-          name: Installing GCC
-          command: 'apt-get update && apt-get install -y gcc g++'
-      - run:
-          name: Building Program (EZHTML.cpp) and creating an executable (EZHTML)
-          command: 'g++ EZHTML.cpp -std=c++17 -o EZHTML'
-      - run:
-          name: Executing EZHTML
-          command: './EZHTML'
+      - run: mkdir -p build && cd build
+      - run: g++ -o EZHTML EZHTML.cpp -std=c++17
+      - run: ./EZHTML
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build_gcc_latest
