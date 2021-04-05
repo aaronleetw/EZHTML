@@ -1,0 +1,16 @@
+version: 2.1
+jobs:
+  build_gcc_latest:
+    docker:
+      - image: gcc:latest
+    steps:
+      - checkout
+      - run: mkdir -p build && cd build
+      - run: g++ -o EZHTML EZHTML.cpp -std=c++17
+      - run: ./EZHTML
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build_gcc_latest
