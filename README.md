@@ -56,12 +56,12 @@ bibliogrpahy
 ### For each file (`#`, if you remember):
 ```html
 <html>
-    <head>
-        <title>
+<head>
+    <title>
 ```
 - INSERT TITLE (from `#`)
 ```html
-        </title>
+    </title>
 ```
 - INSERT CSS INFO FROM INFO
 
