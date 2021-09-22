@@ -1,4 +1,4 @@
-# EZHTML : An easy static website generator, written entirely in C++
+# EZHTML : An easy ~~copy and paste machine~~ static website generator
 ## Why use this?
 I know about the existence of Jekyll and its easy integration with Github Pages, but always thought of something more ... customizable. With EZHTML you can configure all the CSS, JS, and even how the HTML is created in each individual file. I started this project due to the frustration from writing a website with only HTML and a filesystem. I got tired really quickly from changing the Navbar or Footer and had to copy those to each and every file. As a result, I created this project to minimize my time dealing with those repeating and tedious processes.
 
