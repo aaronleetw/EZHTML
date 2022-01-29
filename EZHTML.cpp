@@ -16,46 +16,117 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/* 
+    This program has been edited from the original distrubution to accommodate
+    for usage requirements
+*/
+
 #include <fstream>
-#include <filesystem>
+#ifndef __has_include
+  static_assert(false, "__has_include not supported");
+#else
+#  if __cplusplus >= 201703L && __has_include(<filesystem>)
+#    include <filesystem>
+     namespace fs = std::filesystem;
+#  elif __has_include(<experimental/filesystem>)
+#    include <experimental/filesystem>
+     namespace fs = std::experimental::filesystem;
+#  elif __has_include(<boost/filesystem.hpp>)
+#    include <boost/filesystem.hpp>
+     namespace fs = boost::filesystem;
+#  endif
+#endif
+#include <vector>
+#include <iostream>
 using namespace std;
 string CSS[100], JS[100], LOCATION = "docs";
-int CSScount = 0, JScount = 0;
+vector<pair<string, string>> enPAGE, zhPAGE, PAGE;
+int CSScount = 0, JScount = 0, enPAGEcount, zhPAGEcount, PAGEcount;
+bool hasResultsFile = true;
 
-void generateFinalFile(string fileName, string titleName)
+std::string trim(const std::string& str,
+                 const std::string& whitespace = " \t")
 {
-    std::ofstream EachFile("./" + LOCATION + "/" + fileName + ".html");
-    EachFile << "<!-- Website generated using EZHTML -->\n";
-    EachFile << "<!-- View the project on Github: https://github.com/aaronleetw/EZHTML -->\n";
-    EachFile << "<html>\n\n";
-    EachFile << "<head>\n\t<title>" << titleName << "</title>\n";
-    for (int i = 0; i < CSScount; i++)
-        EachFile << "\t<link rel=\"stylesheet\" href=\"" << CSS[i] << "\">\n";
-    EachFile << "</head>\n\n<body>\n";
+    const auto strBegin = str.find_first_not_of(whitespace);
+    if (strBegin == std::string::npos)
+        return "";
+    const auto strEnd = str.find_last_not_of(whitespace);
+    const auto strRange = strEnd - strBegin + 1;
+    return str.substr(strBegin, strRange);
+}
 
-    ifstream NAVread("NAV.html");
+std::string reduce(const std::string& str,
+                   const std::string& fill = " ",
+                   const std::string& whitespace = " \t")
+{
+    auto result = trim(str, whitespace);
+    auto beginSpace = result.find_first_of(whitespace);
+    while (beginSpace != std::string::npos)
+    {
+        const auto endSpace = result.find_first_not_of(whitespace, beginSpace);
+        const auto range = endSpace - beginSpace;
+        result.replace(beginSpace, range, fill);
+        const auto newStart = beginSpace + fill.length();
+        beginSpace = result.find_first_of(whitespace, newStart);
+    }
+    return result;
+}
+
+void generateFinalFile(string fileName, string titleName, bool lang)
+{
+    cout << "Opening: ./" + LOCATION + "/" + fileName + ".html\n";
+    string fWithoutLang = (fileName[2] == '/') ? fileName.substr(3) : fileName;
+    if (fWithoutLang.find('/') != string::npos)
+    {
+        string dir = fWithoutLang.substr(0, fWithoutLang.find('/'));
+        if (!fs::exists(LOCATION + "/" + (lang ? "zh" : "en") + "/" + dir))
+        {
+            fs::create_directory(LOCATION + "/" + (lang ? "zh" : "en") + "/" + dir);
+        }
+    }
+    std::ofstream EachFile("./" + LOCATION + "/" + fileName + ".html");
+    EachFile << "<!-- Website generated using a modified version of EZHTML -->";
+    EachFile << "<!-- View the original project on Github: https://github.com/aaronleetw/EZHTML -->";
+    EachFile << "<!DOCTYPE html>";
+    EachFile << "<html lang=\"" << (lang ? "zh" : "en") << "\">";
+    EachFile << "<head><title>" << titleName << "</title>";
+    for (int i = 0; i < CSScount; i++)
+        EachFile << "<link rel=\"stylesheet\" href=\"" << CSS[i] << "\">";
+    EachFile << "<meta content=\"text/html;charset=utf-8\" http-equiv=\"Content-Type\"><meta content=\"utf-8\" http-equiv=\"encoding\">";
+    EachFile << "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
+    string tmp = fWithoutLang;
+    if (tmp.find('/') != string::npos)
+        tmp = tmp.substr(0, tmp.find('/')) + tmp.substr(tmp.find('/') + 1);
+    string langInStr = (lang ? "zh" : "en");
+    EachFile << "</head><body class=\"" + langInStr + " " + tmp + "\">";
+    ifstream NAVread;
+    if (lang)
+        NAVread.open("NAVzh.html");
+    else
+        NAVread.open("NAVen.html");
     string gotText;
-    while (getline(NAVread, gotText))
-        EachFile << "\t" << gotText << "\n";
+    while (getline(NAVread, gotText)) {
+        // remove whitespaces
+        EachFile << reduce(gotText);
+    }
     NAVread.close();
 
-    EachFile << "\t<div class=\"container\">\n";
-
     ifstream PAGEread(fileName + ".html");
-    while (getline(PAGEread, gotText))
-        EachFile << "\t\t" << gotText << "\n";
+    while (getline(PAGEread, gotText)) {
+        EachFile << reduce(gotText);
+    }
     PAGEread.close();
 
-    EachFile << "\t</div>\n";
-    for (int i = 0; i < JScount; i++)
-        EachFile << "\t<script src=\"" << JS[i] << "\"></script>\n";
-
     ifstream FOOTERread("FOOTER.html");
-    while (getline(FOOTERread, gotText))
-        EachFile << "\t" << gotText << "\n";
+    while (getline(FOOTERread, gotText)) {
+        EachFile << reduce(gotText);
+    }
     FOOTERread.close();
 
-    EachFile << "</body>\n\n</html>";
+    for (int i = 0; i < JScount; i++)
+        EachFile << "<script src=\"" << JS[i] << "\"></script>";
+
+    EachFile << "</body></html>";
     EachFile.close();
 }
 
@@ -69,8 +140,10 @@ int getAllTheNumbers(string str)
 
 void resetDir()
 {
-    std::filesystem::remove_all("./" + LOCATION + "/");
-    std::filesystem::create_directories("./" + LOCATION + "/");
+    fs::remove_all("./" + LOCATION + "/");
+    fs::create_directories("./" + LOCATION + "/");
+    fs::create_directories("./" + LOCATION + "/en/");
+    fs::create_directories("./" + LOCATION + "/zh/");
 }
 
 int main()
@@ -78,7 +151,7 @@ int main()
     auto start = std::chrono::system_clock::now();
     int readSmthing = 0, tempCSScnt, tempJScnt;
     string myText, tempTitleName;
-    ifstream INFOread("INFO");
+    ifstream INFOread(".ezhtml");
     while (getline(INFOread, myText))
     {
         if (readSmthing != 0)
@@ -97,12 +170,30 @@ int main()
                 if (tempJScnt == JScount)
                     readSmthing = 0;
             }
-            else if (readSmthing == 3) // READ PAGE TITLE
+            else if (readSmthing == 3) // READ EN PAGE TITLE
             {
-                generateFinalFile(myText, tempTitleName);
+                enPAGEcount++;
+                myText.insert(0, "en/");
+                enPAGE.push_back(make_pair(myText, tempTitleName));
+                generateFinalFile(myText, tempTitleName, 0);
                 readSmthing = 0;
             }
-            else if (readSmthing == 4) // READ LOCATION
+            else if (readSmthing == 4) // READ ZH PAGE TITLE
+            {
+                zhPAGEcount++;
+                myText.insert(0, "zh/");
+                zhPAGE.push_back(make_pair(myText, tempTitleName));
+                generateFinalFile(myText, tempTitleName, 1);
+                readSmthing = 0;
+            }
+            else if (readSmthing == 5) // READ REG PAGE TITLE
+            {
+                PAGEcount++;
+                PAGE.push_back(make_pair(myText, tempTitleName));
+                generateFinalFile(myText, tempTitleName, 0);
+                readSmthing = 0;
+            }
+            else if (readSmthing == 6) // READ LOCATION
             {
                 LOCATION = myText;
                 resetDir();
@@ -113,7 +204,7 @@ int main()
         {
             if (myText.substr(1, 2) == "JS")
             {
-                JScount = getAllTheNumbers(myText.substr(4));
+                JScount = getAllTheNumbers(myText.substr(3));
                 tempJScnt = 0;
                 readSmthing = 2;
             }
@@ -124,21 +215,71 @@ int main()
                 readSmthing = 1;
             }
             else if (myText.substr(1, 8) == "LOCATION")
-                readSmthing = 4;
+                readSmthing = 6;
+        }
+        else if (myText.substr(0, 3) == "en#")
+        {
+            readSmthing = 3;
+            tempTitleName = myText.substr(3);
+        }
+        else if (myText.substr(0, 3) == "zh#")
+        {
+            readSmthing = 4;
+            tempTitleName = myText.substr(3);
         }
         else if (myText[0] == '#')
         {
-            readSmthing = 3;
+            readSmthing = 5;
             tempTitleName = myText.substr(1);
+        }
+        else if (myText == "-NORESULTSFILE") {
+            hasResultsFile = false;
         }
     }
     INFOread.close();
-    std::filesystem::copy("./static", "./" + LOCATION + "/static", std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+    fs::copy("./static", "./" + LOCATION + "/static", fs::copy_options::recursive | fs::copy_options::overwrite_existing);
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-    std::ofstream ResultsFile("./" + LOCATION + "/results");
-    ResultsFile << "./" + LOCATION + "/ was generated successfully at " << ctime(&end_time);
-    ResultsFile << "elapsed time: " << elapsed_seconds.count() << "s";
+    if (hasResultsFile) {
+        std::ofstream ResultsFile("./" + LOCATION + "/results");
+        ResultsFile << "./" + LOCATION + "/ was generated successfully at " << ctime(&end_time);
+        ResultsFile << "elapsed time: " << elapsed_seconds.count() << "s" << endl
+                    << endl;
+        ResultsFile << "JScount: " << JScount << "; CSScount: " << CSScount << endl;
+        for (int i = 0; i < JScount; i++)
+            ResultsFile << "; JS[" << i << "]: " << JS[i] << endl;
+        for (int i = 0; i < CSScount; i++)
+            ResultsFile << "; CSS[" << i << "]: " << CSS[i] << endl;
+        ResultsFile << "\nEN Pages: \n";
+        for (int i = 0; i < enPAGEcount; i++)
+            ResultsFile << "; enPAGE[" << i << "]: " << enPAGE[i].first << "; TITLE: " << enPAGE[i].second << endl;
+        ResultsFile << "\nZH Pages: \n";
+        for (int i = 0; i < zhPAGEcount; i++)
+            ResultsFile << "; zhPAGE[" << i << "]: " << zhPAGE[i].first << "; TITLE: " << zhPAGE[i].second << endl;
+        ResultsFile << "\nREG Pages: \n";
+        for (int i = 0; i < PAGEcount; i++)
+            ResultsFile << "; PAGE[" << i << "]: " << PAGE[i].first << "; TITLE: " << PAGE[i].second << endl;
+        ResultsFile.close();
+    }
+    cout << "\n---------------------------------------------------------------------------------\n";
+    cout << "./" + LOCATION + "/ was generated successfully at " << ctime(&end_time);
+    cout << "elapsed time: " << elapsed_seconds.count() << "s" << endl;
+    if (!hasResultsFile) { cout << "No results file was generated.\n\n"; }
+    cout << "JScount: " << JScount << "; CSScount: " << CSScount << endl;
+    for (int i = 0; i < JScount; i++)
+        cout << "; JS[" << i << "]: " << JS[i] << endl;
+    for (int i = 0; i < CSScount; i++)
+        cout << "; CSS[" << i << "]: " << CSS[i] << endl;
+    cout << "\nEN Pages: \n";
+    for (int i = 0; i < enPAGEcount; i++)
+        cout << "; enPAGE[" << i << "]: " << enPAGE[i].first << "; TITLE: " << enPAGE[i].second << endl;
+    cout << "\nZH Pages: \n";
+    for (int i = 0; i < zhPAGEcount; i++)
+        cout << "; zhPAGE[" << i << "]: " << zhPAGE[i].first << "; TITLE: " << zhPAGE[i].second << endl;
+    cout << "\nREG Pages: \n";
+    for (int i = 0; i < PAGEcount; i++)
+        cout << "; PAGE[" << i << "]: " << PAGE[i].first << "; TITLE: " << PAGE[i].second << endl;
+    cout << "---------------------------------------------------------------------------------\n";
     return 0;
 }
